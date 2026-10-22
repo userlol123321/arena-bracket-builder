@@ -1,0 +1,21 @@
+{
+  "name": "arena-tournament-manager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test engine.test.js drive.test.js",
+    "build": "node build.js",
+    "test:browser": "node browser-check.js && npm run build && node browser-drive-check.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}
