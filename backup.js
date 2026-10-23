@@ -1,10 +1,15 @@
 import { formats } from './engine.js';
+import { themes, validLogo } from './themes.js';
 export function validateBackup(data) {
   if (data?.version !== 1 || !Array.isArray(data.tournaments) || data.tournaments.length > 500) throw Error('Unsupported backup file.');
   const tournamentIds = new Set();
   for (const t of data.tournaments) {
     if (!t || typeof t.id !== 'string' || !/^[\w-]+$/.test(t.id) || tournamentIds.has(t.id) || typeof t.name !== 'string' || !Object.hasOwn(formats,t.format) || !['draft','live','complete'].includes(t.status) || !Array.isArray(t.participants) || t.participants.length > 128 || !Array.isArray(t.matches) || t.matches.length > 10000 || (t.status !== 'draft' && !t.matches.length)) throw Error('Invalid bracket in backup.');
     tournamentIds.add(t.id);
+    if (t.appearance !== undefined) {
+      const a = t.appearance;
+      if (!a || typeof a !== 'object' || Array.isArray(a) || !Object.hasOwn(themes,a.theme) || typeof a.leagueName !== 'string' || a.leagueName.length > 80 || (a.logo !== '' && !validLogo(a.logo))) throw Error('Invalid bracket appearance in backup.');
+    }
     const ids = new Set();
     for (const p of t.participants) { if (!p || typeof p.name !== 'string' || !p.name.trim() || typeof p.id !== 'string' || !/^[\w-]+$/.test(p.id) || ids.has(p.id)) throw Error('Invalid team in backup.'); ids.add(p.id); }
     const mids = new Set();

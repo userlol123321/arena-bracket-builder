@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { createTournament, start, report, nextSwiss, standings } from './engine.js';
+import { createTournament, start, report, updateScores, nextSwiss, standings } from './engine.js';
 import { cellText, extractTeams } from './teams.js';
 function fixture(format, count) {
   const t = createTournament({ name: 'Test', format, swissRounds: 4 });
@@ -48,6 +48,28 @@ test('Swiss completes rounds and assigns one bye per odd round', () => {
   const byes = t.matches.filter(m => m.bye);
   assert.equal(byes.length,4);
   assert.equal(new Set(byes.map(m => m.winner)).size,4);
+});
+test('live score changes do not advance teams or alter standings until explicitly finalized', () => {
+  for (const format of ['single','double','robin','swiss']) {
+    const t = fixture(format,4), m = t.matches.find(m => !m.done && m.a && m.b);
+    updateScores(t,m.id,2,2); updateScores(t,m.id,7,3);
+    assert.deepEqual(m.scores,[7,3]); assert.equal(m.done,false); assert.equal(m.winner,null);
+    assert.ok(standings(t).every(p => p.played === 0 && p.points === 0));
+    if (format === 'single' || format === 'double') assert.ok(t.matches.filter(m => m.sources).every(m => !m.a && !m.b));
+    report(t,m.id,7,3);
+    assert.equal(m.done,true); assert.equal(m.winner,m.a);
+    assert.throws(() => updateScores(t,m.id,8,3),/not ready/);
+  }
+  const t = fixture('single',4);
+  updateScores(t,'W1-0',3,3);
+  assert.throws(() => report(t,'W1-0',3,3),/winner/);
+  assert.equal(t.matches[0].done,false);
+  report(t,'W1-0',4,3);
+  assert.equal(t.matches.find(m => m.id === 'W2-0').a,t.matches[0].winner);
+  assert.equal(t.matches.find(m => m.id === 'W2-0').b,null);
+  report(t,'W1-1',2,1);
+  const final = t.matches.find(m => m.id === 'W2-0');
+  assert.equal(final.a,t.matches[0].winner); assert.equal(final.b,t.matches[1].winner);
 });
 test('invalid elimination scores do not mutate matches', () => {
   const t = fixture('single',4), m = t.matches[0];

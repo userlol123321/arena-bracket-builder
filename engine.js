@@ -55,8 +55,8 @@ export function resolve(t) {
     if (m.done) continue;
     if (m.sources) {
       const parents = m.sources.map(([id]) => t.matches.find(p => p.id === id));
+      [m.a, m.b] = m.sources.map(([,field],i) => parents[i]?.done ? parents[i][field] : null);
       if (!parents.every(p => p?.done)) continue;
-      [m.a, m.b] = m.sources.map(([id, field]) => t.matches.find(p => p.id === id)[field]);
     }
     if (!m.a || !m.b) { m.done = true; m.winner = m.a || m.b; m.loser = null; m.bye = true; }
   }
@@ -66,10 +66,19 @@ export function resolve(t) {
   }
   if (t.matches.every(m => m.done) && (t.format !== 'swiss' || Math.max(...t.matches.map(m => m.round)) >= Math.min(t.swissRounds, t.participants.length - 1))) t.status = 'complete';
 }
-export function report(t, id, a, b) {
+function scoringMatch(t, id, a, b) {
   const m = t.matches.find(m => m.id === id);
   if (!m || m.done || !m.a || !m.b) throw new Error('This match is not ready for scoring.');
   if (![a, b].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 99999)) throw new Error('Use whole-number scores from 0 to 99999.');
+  return m;
+}
+export function updateScores(t, id, a, b) {
+  const m = scoringMatch(t,id,a,b);
+  // Live scores do not finalize a match, affect standings, or resolve descendants.
+  m.scores = [a,b];
+}
+export function report(t, id, a, b) {
+  const m = scoringMatch(t,id,a,b);
   if (a === b && ['single', 'double'].includes(t.format)) throw new Error('Elimination matches need a winner.');
   m.scores = [a, b]; m.done = true;
   m.winner = a === b ? null : a > b ? m.a : m.b; m.loser = a === b ? null : a > b ? m.b : m.a;

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101216"><title>Arena — Bracket builder</title><link rel="stylesheet" href="./style.css"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0b0e"><title>Arena — Bracket builder</title><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./themes.css"></head>
 <body>
   <aside class="sidebar">
     <a class="brand" href="#">◈ <span>arena<span class="brand-dot">.</span></span></a>
@@ -9,16 +9,15 @@
     <button class="nav active" id="home">▦ <span>My brackets</span><span id="nav-count" class="pill">0</span></button>
     <button class="nav" id="backup">⇩ <span>Back up workspace</span></button>
     <button class="nav" id="restore">↥ <span>Import backup</span></button>
-    <button class="nav" id="drive-open">☁ <span>Google Drive</span></button>
+    <button class="nav" id="theme-open">◐ <span>Color theme</span></button>
     <div class="sidebar-bottom"><span class="live-dot"></span> Local workspace<small>Saved in this browser. Yours to run.</small></div>
   </aside>
   <main><header class="topbar"><span id="breadcrumb">Workspace <span>/</span> Tournaments</span><span class="local-badge">● Local-first</span></header><div id="app"></div></main>
   <dialog id="dialog"><form id="dialog-form"></form></dialog>
-  <dialog id="drive-dialog" aria-labelledby="drive-title"></dialog>
+  <dialog id="stream-dialog" aria-label="OBS live bracket settings"></dialog>
   <input id="file-input" type="file" accept="application/json,.json" hidden>
   <input id="excel-input" type="file" accept=".xlsx" hidden>
   <div id="toast" role="status"></div>
   <script src="./exceljs.min.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script type="module" src="./app.js"></script>
 </body></html>

@@ -1,67 +1,75 @@
-# GitHub Pages + personal Google Drive setup
+# Local bracket builder and OBS setup
 
-The app is static: GitHub Pages serves the interface, and Google Drive stores one JSON file per bracket in a private **Arena Brackets** folder. Excel remains the input format. Google Sheets and a paid backend are not required.
+Everything runs on your computer. No accounts, cloud storage, API keys, or sign-in are needed.
 
-## 1. Publish on GitHub Pages
+## Run on your OBS computer
 
-1. Create a GitHub repository and upload this project, including `.github/workflows/pages.yml`, `package.json`, and `package-lock.json`. Do not upload `node_modules` or your bracket backups.
-2. Use `main` as the default branch (or update the workflow branch).
-3. In **Settings → Pages → Build and deployment**, choose **GitHub Actions**.
-4. Push to `main`, or run **Actions → Deploy bracket builder to GitHub Pages → Run workflow**.
-5. Once deployment succeeds, open `https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/`.
+Install Node.js 20 or newer, download/clone this repository, then run:
 
-The build copies only application assets to `dist`. Relative asset URLs support repository subpaths. GitHub Pages availability for private repositories depends on your GitHub plan; a public repository works with GitHub Free. A public site does not make your private Drive files public.
+```sh
+npm install
+npm start
+```
 
-## 2. Set up Google sign-in
+Open **http://localhost:3000**. Keep the terminal running while using OBS. The server listens only on this computer, not your LAN or the public internet.
 
-In https://console.cloud.google.com/:
+## Add a live bracket to OBS
 
-1. Create or select a project.
-2. Under **APIs & Services → Library**, enable **Google Drive API**.
-3. Configure **Google Auth Platform** (also called the OAuth consent screen):
-   - Set an app name such as `Arena Bracket Builder` and your email.
-   - For a personal Gmail account, choose **External** audience.
-   - While in Testing, add your Google email under **Test users**.
-   - Add the scope `https://www.googleapis.com/auth/drive.file` under Data Access. The app only requests access to files it creates or that are explicitly shared with it, not your whole Drive.
-4. Under **Clients / Credentials**, create an **OAuth client ID → Web application**.
-5. Add **Authorized JavaScript origins**:
-   - `https://YOUR-USERNAME.github.io` (origin only; do not include the repository path)
-   - `http://localhost:3000` for local development
-   - Add your custom-domain origin too if you use one.
-6. Copy the client ID ending in `.apps.googleusercontent.com`.
+1. Create/import your bracket in the local app.
+2. Open the bracket and click **OBS live link → Create live link**.
+3. Optionally select **Transparent background**, then **Copy link**.
+4. In OBS: **Sources → + → Browser**. Leave **Local file** unchecked and paste the copied URL.
+5. Set width **1920** and height **1080**. The bracket fits the source automatically. For very large brackets, use a larger source resolution or crop/zoom in OBS for legibility.
+6. Click a ready match in the editor and change scores with the number fields or **− / +** buttons. Scores save immediately and OBS updates in about 1–2 seconds. Closing the score window keeps those live scores without advancing anyone.
+7. When the match ends, click **Advance bracket**. This finalizes the result, locks the match, and advances the winner. Elimination matches cannot advance with a tied score. The OBS view has no editing controls and the viewing token cannot authorize edits.
 
-No client secret, API key, service account key, or redirect URI is needed for this popup-based browser flow. The client ID is public configuration. Do not place a client secret in the repository.
+The OBS link works on the **same computer** as the local app. It is not a public sharing URL. GitHub Pages alone cannot relay live data between independent browser sessions without a server; use the local app when streaming.
 
-## 3. Configure the app
+## Customize your league
 
-Choose either:
+- **Color theme** in the sidebar changes the workspace and the default color for newly created brackets.
+- **Customize** inside a bracket changes that bracket's theme, league name, and logo. Existing brackets keep their own choices.
+- Available palettes: red/black (default), purple, electric blue, emerald, orange, gold, and black/white.
+- Logos support PNG, JPG, and WebP up to 3 MB. Transparent PNG is recommended. The app scales logos to a maximum of 256 pixels and embeds them directly in backups and SVG/PNG exports.
+- Preview your changes, then click **Apply appearance**. An active OBS viewer picks up the changes automatically. Cancel leaves the saved appearance unchanged.
+- Workspace backups include the workspace theme, per-bracket themes, league names, and embedded logos, so no separate image files are needed on another computer.
 
-- In the app, click **Google Drive**, paste the client ID, and click **Connect Google Drive**. The ID is saved in that browser.
-- Or put the client ID in `config.js` as `googleClientId`, then redeploy. This avoids re-entering it on each device.
+## Link lifetime
 
-Sign in with your test-user Google account and grant access. Google creates the Arena folder on the first successful connection. Testing-mode grants may expire after seven days, and browser access tokens typically last about an hour; reconnect when asked. The app stores tokens only in memory, so reloading also requires reconnecting. Disconnect clears the in-memory session; to revoke the grant completely, remove the app from your Google account's third-party connections.
+- **Stop sharing** disables the existing link. Creating another link produces a different address.
+- **Deleting the bracket** also disables its link.
+- **Stopping/restarting the local server** clears all temporary links. Create a fresh link afterward and update OBS.
+- Closing the editor leaves the last bracket snapshot available while the server stays running. Reopening the same browser resumes edits.
+- If the connection fails, the viewer keeps its last snapshot with a reconnecting notice. When sharing ends, the bracket disappears and the viewer displays “This live link has ended.”
+- Temporary stream snapshots are held in memory. Persistent bracket data stays in your editor browser, so stopping the server does not delete your workspace.
+- Use one editor tab for a bracket at a time. Multiple editor tabs can overwrite each other's local changes.
 
-## 4. Save, load, and delete
+## Move to another computer
 
-- Build your bracket normally from Excel.
-- Open **Google Drive**, select the local bracket, and click **Save to Drive**. This creates or updates its JSON file.
-- Edits and scores save automatically **in the current browser only**. Click **Save to Drive** after changes; cloud saving is manual.
-- On another device, connect using the same Google account and app client ID, then click **Load** beside the saved bracket. Load replaces that bracket's local copy after confirmation; other brackets remain.
-- Before switching devices, save to Drive. Before editing on a different device, load the latest copy. The app checks Drive modification timestamps before overwriting or deleting a linked copy, but it is not a simultaneous multi-editor system.
-- Delete from the Drive panel to move that file to Google Drive Trash and remove its local copy. Dashboard deletion also trashes the linked Drive file and requires a connected session. If a Drive operation fails, the local bracket remains.
-- A bracket never saved or loaded on this browser has no Drive link; deleting that local bracket does not search for remote copies. Use the Drive panel to manage saved copies from other devices.
-- If you manually trash a file outside the app, the old local link remains. Restore it in Drive before saving/deleting through the app again, or import the teams into a new bracket.
-- Google Drive Trash counts toward storage until emptied. JSON bracket files are small. The available free quota is shared with Gmail and Google Photos.
+1. On the original computer, click **Back up workspace** to download `arena-workspace.json`.
+2. Transfer that file by USB, email, or your preferred method.
+3. Run the app on the other computer and click **Import backup**.
 
-You can continue exporting PNG/SVG/PDF for Instagram independently of Drive. Only bracket JSON is uploaded by this integration; images and source Excel files are not automatically uploaded.
+Backups include teams, seeds, formats, scores, and results. Existing brackets with matching IDs are replaced after confirmation. Live links are temporary and are not transferred; create a new one on the new computer. Clearing browser data removes locally saved brackets, so keep backups.
 
-## Troubleshooting
+If you previously saved brackets in cloud storage, those existing files are not deleted by this update. Import their JSON backups into the app if you need them locally.
 
-- **origin_mismatch:** Ensure the exact current origin is authorized. Ports matter. Changes can take a few minutes to propagate.
-- **access_denied:** Add your Google account as a test user and verify Drive API is enabled.
-- **Popup blocked / sign-in not loaded:** Allow popups and access to `accounts.google.com`, then retry.
-- **Changed in Drive:** Export your local JSON backup, refresh and load the Drive copy, then make your changes. The app avoids silently overwriting newer data.
-- **Wrong account:** Disconnect and reconnect to the account where that bracket was saved.
-- **Site loads without styling:** Deploy the `dist` artifact with the included workflow, not the source folder.
+## GitHub Pages
 
-Live sign-in needs your own client ID and authorized deployment origin. Automated tests mock Drive API responses; they do not authenticate to a real Google account.
+The static site still supports Excel import, bracket editing, exports, and workspace backups without any configuration.
+
+1. Push the project to `main` in your GitHub repository.
+2. In **Settings → Pages**, choose **GitHub Actions**.
+3. The included workflow tests, builds, and deploys `dist/`.
+
+For an OBS session, export a workspace backup from the website and import it into **http://localhost:3000**. The website and local app have separate browser storage.
+
+## Checks
+
+```sh
+npm test
+npm run build
+npm run test:browser
+```
+
+Browser checks use an installed Google Chrome by default; set `BROWSER_CHANNEL` for another supported installed Playwright browser channel. They run on temporary ports with isolated browser contexts, leaving your workspace untouched.

@@ -1,18 +1,6 @@
 # Arena — Excel bracket builder
 
-A bracket-building app with optional personal Google Drive storage. Upload a spreadsheet of team names, generate a bracket, and export it. Excel is processed in your browser; local mode requires no account.
-
-## GitHub Pages and Google Drive
-
-See **[SETUP.md](./SETUP.md)** for deployment and Google OAuth configuration. A GitHub Actions workflow builds and deploys the static site. Google Drive stores a separate JSON file for each bracket in a private `Arena Brackets` folder.
-
-Use **Google Drive → Connect → Save to Drive** to upload a local bracket. Use **Load** on another device. Cloud saves are manual; edits continue to save locally automatically. Deleting a linked bracket also moves its Drive copy to Trash and requires sign-in.
-
-```sh
-npm run build
-```
-
-The deployable site is generated in `dist/`. Live Drive authentication requires your own Google OAuth client ID and an authorized site origin.
+A personal, local-first bracket builder with Excel team import, image exports, and read-only live OBS links. No cloud accounts or API keys required.
 
 ## Run
 
@@ -23,41 +11,45 @@ npm install
 npm start
 ```
 
-Open **http://localhost:3000**. The server listens only on your own computer.
+Open **http://localhost:3000** on your OBS computer.
 
-## Build a bracket from Excel
+## Features
 
-1. Click **Choose Excel file** or drop an `.xlsx` file onto the home screen. An Excel template is available there too.
-2. Choose a worksheet and the column containing team names. Toggle the header checkbox as needed; a preview shows the detected teams.
-3. Name your bracket and choose single elimination, double elimination, round robin, or Swiss.
-4. Click **Build bracket**. Spreadsheet row order determines seeds; empty names are skipped. Between 2 and 128 uniquely named teams are supported.
-5. Click **Export bracket** for PNG, SVG, or Print / Save as PDF. JSON exports preserve editable data; CSV exports contain standings.
+- Import `.xlsx` team lists with worksheet/column selection and a preview; a template is included.
+- Single elimination, double elimination, round robin, and Swiss formats.
+- 2–128 teams, seed ordering/shuffling, automatic byes, scoring, and standings.
+- Red-and-black default with seven color themes; per-bracket league name and uploaded logo, included in OBS, images, and backups.
+- PNG/SVG bracket exports, browser Print / Save as PDF, CSV standings, and JSON backups.
+- **OBS live link:** updates automatically when you edit scores; no editing controls in the viewer. Includes transparent background and auto-fit display.
+- **Stop sharing** or delete the bracket to disable its local live link. Restarting the server also expires temporary links.
+- **Back up workspace / Import backup** to transfer all brackets and scores to another computer.
 
-To arrange seeds before generating, create a **Blank bracket**, upload Excel from **Teams & seeds**, and reorder or shuffle the teams. Import can replace or append teams. Generated brackets can be reset to edit teams; resetting clears scores.
+## Using OBS
 
-Optional score entry advances winners. Double elimination includes a grand-final reset when necessary. Swiss generates one round at a time, pairing by points and avoiding rematches where possible (greedy pairing, not a federation-certified Swiss system). Single and double elimination automatically advance byes. Round-robin and Swiss draws are supported.
+In a bracket, click **OBS live link → Create live link → Copy link**. Add an OBS **Browser Source**, paste the URL, and set it to **1920 × 1080**. Keep `npm start` running. Enter scores in the editor; the read-only viewer updates in about 1–2 seconds.
+
+Live links work on the same computer as the server. The GitHub Pages version supports normal bracket work and backups; run locally for OBS. See **[SETUP.md](./SETUP.md)** for the full workflow.
+
+## Make it yours
+
+Use **Color theme** in the sidebar to choose the workspace theme and default for new brackets. Open any bracket and choose **Customize** to set its own palette, league name, and logo. Choices include red/black, purple, blue, emerald, orange, gold, and black/white. Upload PNG, JPEG, or WebP logos up to 3 MB; they are optimized locally and embedded in the bracket. **Apply appearance** updates an active OBS view automatically. Logos can be removed or replaced anytime, without resetting scores.
 
 ## Data and limits
 
-- Data is saved in this browser's local storage. Use **Back up workspace** to keep a portable copy. Clearing browser data removes local brackets.
-- Excel `.xlsx` only; save legacy `.xls` files as `.xlsx` in Excel first. Maximum file size: 5 MB. Worksheets are limited to 10,000 rows and 200 columns.
-- Formula cells use their cached Excel result. Recalculate and save the workbook in Excel if those results are missing.
-- Scores lock after submission. Resetting clears all results so you can rebuild the bracket.
-- Wide image exports include every round. Long team names are shortened in images; the full names remain in the app and JSON.
-- PDF export uses your browser's print dialog. Wide brackets may wrap over multiple pages.
+- Brackets save automatically to this browser's local storage. Keep JSON backups before clearing browser data or changing computers.
+- Live snapshots are temporary and held in local server memory. They are separate from saved bracket data.
+- Excel `.xlsx` only; save legacy `.xls` workbooks as `.xlsx`. File limit: 5 MB, 10,000 rows and 200 columns per sheet. Team names must be unique.
+- Spreadsheet row order determines initial seeding. Blank team names are skipped. Formula cells use cached Excel results.
+- Live scores save while you type or use the − / + controls. Teams advance only when you explicitly click **Advance bracket**. Finalized scores lock; reset the bracket to clear results and edit teams again.
+- Swiss uses greedy score-based pairing, avoiding rematches when possible; it is not a federation-certified pairing system.
+- Large brackets scale to fit the OBS source and may need cropping/zooming for readable text. Long names are shortened in image views.
 
-## Verify
+## Build and verify
 
 ```sh
 npm test
-```
-
-Tests exercise elimination brackets for every size from 2 to 128, double-elimination resets, round robin, Swiss byes, score validation, and Excel workbook parsing.
-
-For browser-level checks with Google Chrome installed:
-
-```sh
+npm run build
 npm run test:browser
 ```
 
-This checks Excel upload and sheet selection, bracket generation, PNG/SVG/JSON/CSV downloads, score entry, saved data, and mobile layout. Set `BROWSER_CHANNEL` to use another installed Playwright-supported browser channel.
+The GitHub Actions workflow publishes `dist/` to GitHub Pages. Tests cover bracket logic, Excel parsing, local link authorization/revocation, and browser flows including score updates in an independent viewer and backup transfer.

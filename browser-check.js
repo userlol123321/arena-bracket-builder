@@ -37,7 +37,7 @@ try {
   }
   await page.locator('.match-card.ready').first().click();
   await page.locator('input[name="score0"]').fill('2');
-  await page.getByRole('button',{name:'Confirm result'}).click();
+  await page.getByRole('button',{name:'Advance bracket'}).click();
   await page.reload();
   await page.locator('.tournament-card').filter({hasText:'My teams'}).click();
   assert.ok(await page.locator('.match-player.winner').count() > 0);

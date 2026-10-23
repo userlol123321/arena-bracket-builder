@@ -1,0 +1,95 @@
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+import { createArenaServer } from './server.js';
+import { createTournament, start } from './engine.js';
+const server = createArenaServer(); await new Promise(r => server.listen(3108,'127.0.0.1',r));
+let browser;
+try {
+  browser = await chromium.launch({channel:process.env.BROWSER_CHANNEL || 'chrome'});
+  const editorContext = await browser.newContext(), viewerContext = await browser.newContext();
+  const editor = await editorContext.newPage(), viewer = await viewerContext.newPage();
+  const errors = []; for (const page of [editor,viewer]) page.on('pageerror',e => errors.push(e.message));
+  const bracket = createTournament({name:'OBS final',format:'single'});
+  bracket.participants = ['Eclipse','Orbit','Night Owls','Cloud Nine'].map((name,i) => ({id:`team-${i}`,name})); start(bracket);
+  await editor.goto('http://localhost:3108');
+  assert.equal(await editor.locator('html').getAttribute('data-theme'),'red');
+  await editor.locator('#theme-open').click();
+  await editor.locator('.theme-choice').filter({has:editor.locator('input[value=gold]')}).click();
+  await editor.getByRole('button',{name:'Apply appearance',exact:true}).click();
+  await editor.evaluate(t => localStorage.setItem('arena-v1',JSON.stringify([t])),bracket); await editor.reload();
+  assert.equal(await editor.locator('#drive-open').count(),0);
+  assert.equal(await editor.locator('html').getAttribute('data-theme'),'gold');
+  await editor.locator('.tournament-card').click();
+  await editor.locator('[data-action=stream]').click(); await editor.locator('[data-stream=start]').click();
+  await editor.locator('#obs-url').waitFor(); const url = await editor.locator('#obs-url').inputValue();
+  await viewer.goto(url); await viewer.locator('svg').waitFor();
+  assert.match(await viewer.locator('#canvas').innerText(),/OBS final/);
+  assert.equal(await viewer.locator('button,input').count(),0);
+  assert.equal(await viewer.evaluate(() => localStorage.getItem('arena-local-editor')),null);
+  await editor.locator('[data-stream=close]').click();
+  await editor.locator('[data-action=appearance]').click();
+  await editor.locator('.theme-choice').filter({has:editor.locator('input[value=blue]')}).click();
+  await editor.locator('input[name=leagueName]').fill('Midnight League');
+  const logo = await editor.evaluate(() => { const c = document.createElement('canvas'); c.width = c.height = 32; const ctx = c.getContext('2d'); ctx.fillStyle = '#00ff00'; ctx.fillRect(0,0,32,32); return c.toDataURL('image/png').split(',')[1]; });
+  await editor.locator('#league-logo-file').setInputFiles({name:'league.png',mimeType:'image/png',buffer:Buffer.from(logo,'base64')});
+  await editor.getByText('Logo ready. Apply appearance to save it.',{exact:true}).waitFor();
+  await editor.getByRole('button',{name:'Apply appearance',exact:true}).click();
+  assert.equal(await editor.locator('html').getAttribute('data-theme'),'blue');
+  await viewer.waitForFunction(() => document.querySelector('svg')?.textContent.includes('Midnight League'));
+  assert.equal(await viewer.locator('svg image').count(),1);
+  assert.equal(await viewer.locator('svg>g>rect').first().getAttribute('fill'),'#0a1018');
+  // Image exports must contain the actual embedded logo, not only its URL.
+  for (const type of ['svg','png']) {
+    await editor.locator('[data-action=export]').click(); await editor.locator('select[name=type]').selectOption(type);
+    const pending = editor.waitForEvent('download'); await editor.locator('#dialog-form').getByRole('button',{name:'Export',exact:true}).click();
+    const file = await pending; const chunks = []; for await (const chunk of await file.createReadStream()) chunks.push(chunk); const bytes = Buffer.concat(chunks);
+    if (type === 'svg') { assert.match(bytes.toString(),/Midnight League/); assert.match(bytes.toString(),/<image href="data:image\/png;base64/); }
+    else {
+      const pixel = await editor.evaluate(async data => { const image = new Image(); image.src = `data:image/png;base64,${data}`; await image.decode(); const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height; const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0); return [...ctx.getImageData(80,80,1,1).data]; },bytes.toString('base64'));
+      assert.deepEqual(pixel,[0,255,0,255]);
+    }
+  }
+  await editor.locator('.match-card.ready').first().click();
+  await editor.locator('input[name=score0]').fill('7');
+  await viewer.waitForFunction(() => [...document.querySelectorAll('svg text')].some(t => t.textContent === '7'));
+  let live = await editor.evaluate(() => JSON.parse(localStorage.getItem('arena-v1'))[0]);
+  assert.equal(live.matches[0].done,false); assert.equal(live.matches[0].winner,null);
+  assert.equal(live.matches.at(-1).a,null);
+  await editor.locator('#cancel-dialog').click();
+  await editor.locator('.match-card.ready').first().click();
+  assert.equal(await editor.locator('input[name=score0]').inputValue(),'7');
+  await editor.getByRole('button',{name:'Advance bracket',exact:true}).click();
+  live = await editor.evaluate(() => JSON.parse(localStorage.getItem('arena-v1'))[0]);
+  assert.equal(live.matches[0].done,true); assert.equal(live.matches[0].winner,live.matches[0].a);
+  assert.equal(live.matches.at(-1).a,live.matches[0].winner);
+  await viewer.waitForFunction(() => document.querySelector('[data-match="W1-0"]').textContent.includes('FINAL'));
+  await editor.reload(); await editor.locator('.tournament-card').click();
+  assert.equal(await editor.locator('html').getAttribute('data-theme'),'blue');
+  assert.equal(await editor.locator('.league-brand').innerText(),'Midnight League');
+  await editor.locator('[data-action=stream]').click(); assert.equal(await editor.locator('#obs-url').inputValue(),url);
+  await editor.locator('#obs-transparent').check();
+  await viewer.goto(await editor.locator('#obs-url').inputValue()); await viewer.locator('svg').waitFor();
+  await viewer.waitForFunction(() => document.body.classList.contains('transparent'));
+  await editor.locator('[data-stream=stop]').click();
+  await viewer.getByText('This live link has ended.',{exact:true}).waitFor(); assert.equal(await viewer.locator('svg').count(),0);
+  await editor.locator('[data-stream=start]').click(); await editor.locator('#obs-url').waitFor();
+  const newUrl = await editor.locator('#obs-url').inputValue(); assert.notEqual(newUrl,url);
+  await viewer.goto(newUrl); await viewer.locator('svg').waitFor(); await editor.locator('[data-stream=close]').click();
+  const backupPromise = editor.waitForEvent('download'); await editor.locator('#backup').click(); const download = await backupPromise;
+  const chunks = []; for await (const chunk of await download.createReadStream()) chunks.push(chunk); const backup = Buffer.concat(chunks);
+  const importedContext = await browser.newContext(), imported = await importedContext.newPage(); await imported.goto('http://localhost:3108');
+  imported.once('dialog',d => d.accept()); await imported.locator('#file-input').setInputFiles({name:'workspace.json',mimeType:'application/json',buffer:backup});
+  await imported.locator('.tournament-card').waitFor();
+  const restored = await imported.evaluate(() => JSON.parse(localStorage.getItem('arena-v1'))[0]);
+  assert.equal(restored.matches[0].scores[0],7);
+  assert.equal(restored.appearance.theme,'blue'); assert.equal(restored.appearance.leagueName,'Midnight League'); assert.match(restored.appearance.logo,/^data:image\/png;base64,/);
+  assert.equal(await imported.locator('html').getAttribute('data-theme'),'gold');
+  await imported.locator('.tournament-card').click(); await imported.locator('[data-action=appearance]').click();
+  await imported.locator('#remove-league-logo').click(); await imported.getByRole('button',{name:'Apply appearance',exact:true}).click();
+  assert.equal(await imported.locator('.league-logo').count(),0);
+  await editor.locator('[data-action=back]').click(); await editor.locator('[data-delete]').click();
+  await editor.getByRole('button',{name:'Delete bracket',exact:true}).click();
+  await viewer.getByText('This live link has ended.',{exact:true}).waitFor(); assert.equal(await viewer.locator('svg').count(),0);
+  assert.deepEqual(errors,[]);
+  console.log('Browser checks passed: themes, league branding, embedded PNG/SVG logo exports, live OBS appearance/scores, persistence, backup transfer, and link revocation.');
+} finally { await browser?.close(); await new Promise(r => server.close(r)); }
